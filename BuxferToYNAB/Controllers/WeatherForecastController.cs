@@ -1,10 +1,8 @@
-﻿using Buxfer.Client;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace BuxferToYNAB.Controllers
 {
@@ -28,7 +26,7 @@ namespace BuxferToYNAB.Controllers
         public IEnumerable<WeatherForecast> Get()
         {
 
-            var client = new BuxferClient("<your user>", "<your password>");
+
 
 
             var rng = new Random();
