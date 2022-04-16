@@ -38,9 +38,7 @@ namespace BuxferToYNAB.Services
             var lastSevenDaysTransactions = transactionsBuxfer.Result.Entities.Where(x => x.Date >= _sinceDate).ToList().OrderBy(x => x.Date);
             var lastSevenDaysTransactionsGroupByAccounts = lastSevenDaysTransactions.GroupBy(x => x.AccountName);
 
-            //// ynab
-            //var budgetList = GetBudgetListYNAB();
-            //var defaultBudget = budgetList.FirstOrDefault(x=>x.name == "Personal 2022");
+            var curatedTransactions = new TransactionsDTO();
 
             foreach (var transactionsGroupByAccount in lastSevenDaysTransactionsGroupByAccounts)
             {
@@ -50,16 +48,60 @@ namespace BuxferToYNAB.Services
                 {
                     if (!CheckIfTransactionExistInYNAB(transactionBuxfer, ynabTrasactionsByAccount))
                     {
-                        PostTransactionToYNAB(transactionBuxfer);
+                        AddTransactionsToQueue(transactionBuxfer, curatedTransactions.transactions);
                     }
                 }
             }
+
+            PostTransactionToYNAB(curatedTransactions);
         }
 
-        private void PostTransactionToYNAB(Buxfer.Client.Transaction transactionBuxfer)
+        private void PostTransactionToYNAB(TransactionsDTO curatedTransactions)
         {
-            throw new NotImplementedException();
+            var client = new RestClient($"https://api.youneedabudget.com/v1/budgets/{_ynabBudgetId}/transactions");
+            client.Timeout = -1;
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("Authorization", $"Bearer {_ynabToken}");
+            request.AddHeader("Content-Type", "application/json");
+            var body = JsonSerializer.Serialize(curatedTransactions);
+            request.AddParameter("application/json", body, ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+            
         }
+
+        private void AddTransactionsToQueue(Buxfer.Client.Transaction transactionBuxfer, List<TransactionDTO> transactions)
+        {
+            int amount = GetAmount(transactionBuxfer);
+
+            transactions.Add(new TransactionDTO
+            {
+                account_id = GetAccountId(transactionBuxfer.AccountName),
+                date = transactionBuxfer.Date,
+                amount = amount,
+                flag_color = "purple",
+                import_id = $"YNAB:{amount}:{transactionBuxfer.Date.ToString("yyyy-MM-dd")}:{new Random().Next()}",
+                payee_name = transactionBuxfer.Description,
+                memo = transactionBuxfer.Description
+            });
+        }
+
+        private int GetAmount(Buxfer.Client.Transaction transactionBuxfer)
+        {
+            var amount = 0;
+            switch (transactionBuxfer.Type)
+            {
+                case TransactionType.Income:
+                    amount = (int)(Math.Abs(transactionBuxfer.Amount) * 1000);
+                    break;
+                default:
+                    amount = (int)(transactionBuxfer.Amount * -1000);
+                    break;
+            };
+
+            return amount;
+
+        }
+
 
         private bool CheckIfTransactionExistInYNAB(Buxfer.Client.Transaction transactionBuxfer, List<Models.Transaction> ynabTrasactionsByAccount)
         {
@@ -74,16 +116,7 @@ namespace BuxferToYNAB.Services
 
         private List<Models.Transaction> GetTransactionsListByAccountYNAB(string key)
         {
-            var accountId = "";
-            switch (key)
-            {
-                case "764393658":
-                    accountId = _ynabCheckAcctId;
-                    break;
-                case "************9095":
-                    accountId = _ynabCreditCardAcctId;
-                    break;
-            }
+            string accountId = GetAccountId(key);
 
             var client = new RestClient($"https://api.youneedabudget.com/v1/budgets/{_ynabBudgetId}/accounts/{accountId}/transactions");
             client.Timeout = -1;
@@ -95,6 +128,22 @@ namespace BuxferToYNAB.Services
             var transactionList = JsonSerializer.Deserialize<TransactionWrapper>(response.Content);
 
             return transactionList.data.transactions;
+        }
+
+        private string GetAccountId(string key)
+        {
+            var accountId = "";
+            switch (key)
+            {
+                case "************9095":
+                    accountId = _ynabCreditCardAcctId;
+                    break;
+                default:
+                    accountId = _ynabCheckAcctId;
+                    break;
+            }
+
+            return accountId;
         }
 
         public async Task<FilterResult<Buxfer.Client.Transaction>> GetTransactionsFromBaxferAsync()
