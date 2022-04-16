@@ -13,7 +13,9 @@ namespace BuxferToYNAB.Services
     public class SyncTransactionService
     {
         private readonly IConfiguration _config;
-        private readonly string _buxferUser, _buxferPassword, _ynabToken, _ynabAPIURL;
+        private readonly string _buxferUser, _buxferPassword, _ynabToken, _ynabAPIURL, _ynabBudgetId,
+            _ynabCheckAcctId, _ynabCreditCardAcctId;
+        private readonly DateTime _sinceDate;
 
         public SyncTransactionService(IConfiguration config)
         {
@@ -21,69 +23,81 @@ namespace BuxferToYNAB.Services
             _buxferUser = _config["BuxferUser"];
             _buxferPassword = _config["BuxferPwd"];
             _ynabToken = _config["YNABToken"];
+            _ynabBudgetId = _config["YNABBudgetId"];
+            _ynabCheckAcctId = _config["YNABCheckAcctId"];
+            _ynabCreditCardAcctId = _config["YNABCreditCardAcctId"];
             _ynabAPIURL = "https://api.youneedabudget.com/v1/budgets";
-            var accessToken = _ynabToken;
 
+            _sinceDate = DateTime.Today.AddDays(-8);
         }
 
         public async void SyncTransactions()
         {
             // buxfer
             var transactionsBuxfer = GetTransactionsFromBaxferAsync();
-            var lastSevenDaysTransactions = transactionsBuxfer.Result.Entities.Where(x => x.Date >= DateTime.Today.AddDays(-8)).ToList().OrderBy(x=>x.Date);
+            var lastSevenDaysTransactions = transactionsBuxfer.Result.Entities.Where(x => x.Date >= _sinceDate).ToList().OrderBy(x => x.Date);
+            var lastSevenDaysTransactionsGroupByAccounts = lastSevenDaysTransactions.GroupBy(x => x.AccountName);
 
-            // ynab
-            var budgetList = GetBudgetListYNAB();
-            var defaultBudget = budgetList.FirstOrDefault(x=>x.name == "Personal 2022");
+            //// ynab
+            //var budgetList = GetBudgetListYNAB();
+            //var defaultBudget = budgetList.FirstOrDefault(x=>x.name == "Personal 2022");
 
-            foreach(var transBuxfer in lastSevenDaysTransactions)
+            foreach (var transactionsGroupByAccount in lastSevenDaysTransactionsGroupByAccounts)
             {
-                if(!CheckIfTransactionExistInYNAB(transBuxfer, defaultBudget))
-                {
+                var ynabTrasactionsByAccount = GetTransactionsListByAccountYNAB(transactionsGroupByAccount.Key);
 
+                foreach (var transactionBuxfer in transactionsGroupByAccount)
+                {
+                    if (!CheckIfTransactionExistInYNAB(transactionBuxfer, ynabTrasactionsByAccount))
+                    {
+                        PostTransactionToYNAB(transactionBuxfer);
+                    }
                 }
             }
-
         }
 
-        private bool CheckIfTransactionExistInYNAB(Transaction transBuxfer, Models.Budget defaultBudget)
+        private void PostTransactionToYNAB(Buxfer.Client.Transaction transactionBuxfer)
         {
             throw new NotImplementedException();
         }
 
-        private List<Models.Budget> GetBudgetListYNAB()
+        private bool CheckIfTransactionExistInYNAB(Buxfer.Client.Transaction transactionBuxfer, List<Models.Transaction> ynabTrasactionsByAccount)
         {
-            var client = new RestClient(_ynabAPIURL);
-            client.Timeout = -1;
-            var request = new RestRequest(Method.GET);
-            request.AddHeader("Authorization", "Bearer " + _ynabToken);
-            IRestResponse response = client.Execute(request);
+            var transactionExist = ynabTrasactionsByAccount
+                 .Where(x => x.memo.ToUpper() == transactionBuxfer.Description.ToUpper()
+                 && x.date == transactionBuxfer.Date
+                 && Math.Abs(x.amount) / 1000 == Math.Abs(transactionBuxfer.Amount)
+                 ).Any();
 
-            var budgetList = JsonSerializer.Deserialize<BudgetWrapper>(response.Content);
-
-            return budgetList.data.budgets;
+            return transactionExist;
         }
 
-        //public async Task<YNAB.SDK.Model.BudgetSummaryResponse> ListBudgets()
-        //{
-        //    try
-        //    {
-        //        var budgetsResponse = ynabApi.Budgets.GetBudgets();
+        private List<Models.Transaction> GetTransactionsListByAccountYNAB(string key)
+        {
+            var accountId = "";
+            switch (key)
+            {
+                case "764393658":
+                    accountId = _ynabCheckAcctId;
+                    break;
+                case "************9095":
+                    accountId = _ynabCreditCardAcctId;
+                    break;
+            }
 
-        //        var a = budgetsResponse.Data.Budgets.ToList();
+            var client = new RestClient($"https://api.youneedabudget.com/v1/budgets/{_ynabBudgetId}/accounts/{accountId}/transactions");
+            client.Timeout = -1;
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("Authorization", $"Bearer {_ynabToken}");
+            request.AlwaysMultipartFormData = true;
+            request.AddParameter("since_date", _sinceDate.Date.ToString("yyyy-MM-dd"));
+            IRestResponse response = client.Execute(request);
+            var transactionList = JsonSerializer.Deserialize<TransactionWrapper>(response.Content);
 
-        //        return budgetsResponse;
-        //        // Won't get here because an error will be thrown
-        //    }
-        //    catch (YNAB.SDK.Client.ApiException ex)
-        //    {
-        //        Console.WriteLine(ex.ErrorCode); // 401
-        //    }
+            return transactionList.data.transactions;
+        }
 
-        //    return null;
-        //}
-
-        public async Task<FilterResult<Transaction>> GetTransactionsFromBaxferAsync()
+        public async Task<FilterResult<Buxfer.Client.Transaction>> GetTransactionsFromBaxferAsync()
         {
             var client = new BuxferClient(_buxferUser, _buxferPassword);
 
