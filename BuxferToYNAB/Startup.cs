@@ -41,7 +41,7 @@ namespace BuxferToYNAB
                 endpoints.MapControllers();
             });
 
-          new TransactionService(Configuration).SyncTransactions();
+          new SyncTransactionService(Configuration).SyncTransactions();
         }
     }
 }
