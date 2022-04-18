@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace BuxferToYNAB.Models
 {
- 
+    [DebuggerDisplay("memo:{memo}; date:{date}; amount:{amount}; acct:{account_id}")]
     public class TransactionDTO
     {
         public string account_id { get; set; }
