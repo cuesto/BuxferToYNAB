@@ -31,11 +31,11 @@ namespace BuxferToYNAB.Services
             _sinceDate = DateTime.Today.AddDays(-8);
         }
 
-        public async void SyncTransactions()
+        public async Task SyncTransactions()
         {
             // buxfer
             var transactionsBuxfer = GetTransactionsFromBaxferAsync();
-            var lastSevenDaysTransactions = transactionsBuxfer.Result.Entities.Where(x => x.Date >= _sinceDate).ToList().OrderBy(x => x.Date);
+            var lastSevenDaysTransactions = transactionsBuxfer.Result.Entities.Where(x => x.Date >= _sinceDate && x.Status != TransactionStatus.Pending).ToList().OrderBy(x => x.Date);
             var lastSevenDaysTransactionsGroupByAccounts = lastSevenDaysTransactions.GroupBy(x => x.AccountName);
 
             var curatedTransactions = new TransactionsDTO();
@@ -53,7 +53,8 @@ namespace BuxferToYNAB.Services
                 }
             }
 
-            PostTransactionToYNAB(curatedTransactions);
+            if (curatedTransactions.transactions.Count > 0)
+                PostTransactionToYNAB(curatedTransactions);
         }
 
         private void PostTransactionToYNAB(TransactionsDTO curatedTransactions)
@@ -66,7 +67,7 @@ namespace BuxferToYNAB.Services
             var body = JsonSerializer.Serialize(curatedTransactions);
             request.AddParameter("application/json", body, ParameterType.RequestBody);
             IRestResponse response = client.Execute(request);
-            
+
         }
 
         private void AddTransactionsToQueue(Buxfer.Client.Transaction transactionBuxfer, List<TransactionDTO> transactions)
