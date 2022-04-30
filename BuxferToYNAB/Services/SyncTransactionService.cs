@@ -28,7 +28,7 @@ namespace BuxferToYNAB.Services
             _ynabCreditCardAcctId = _config["YNABCreditCardAcctId"];
             _ynabAPIURL = "https://api.youneedabudget.com/v1/budgets";
 
-            _sinceDate = DateTime.Today.AddDays(-8);
+            _sinceDate = DateTime.Today.AddDays(-15);
         }
 
         public async Task SyncTransactions()
