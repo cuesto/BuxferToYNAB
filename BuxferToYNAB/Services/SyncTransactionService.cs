@@ -72,6 +72,10 @@ namespace BuxferToYNAB.Services
 
         private void AddTransactionsToQueue(Buxfer.Client.Transaction transactionBuxfer, List<TransactionDTO> transactions)
         {
+            //TODO: add transfer transactions
+            if (OmmitTransferTransaction(transactionBuxfer))
+                return;
+
             int amount = GetAmount(transactionBuxfer);
 
             transactions.Add(new TransactionDTO
@@ -79,11 +83,25 @@ namespace BuxferToYNAB.Services
                 account_id = GetAccountId(transactionBuxfer.AccountName),
                 date = transactionBuxfer.Date,
                 amount = amount,
+                amountRaw = transactionBuxfer.Amount,
                 flag_color = "purple",
                 import_id = $"YNAB:{amount}:{transactionBuxfer.Date.ToString("yyyy-MM-dd")}:{new Random().Next()}",
                 payee_name = transactionBuxfer.Description,
-                memo = transactionBuxfer.Description
+                memo = transactionBuxfer.Description,
+                Type = transactionBuxfer.Type
             });
+        }
+
+        private bool OmmitTransferTransaction(Buxfer.Client.Transaction transactionBuxfer)
+        {
+            
+            if (transactionBuxfer.Description == "Pago Via Mbanking"
+                && GetAccountId(transactionBuxfer.AccountName) == _ynabCreditCardAcctId
+                && transactionBuxfer.Type == TransactionType.Transfer)
+                return true;
+
+
+            return false;
         }
 
         private int GetAmount(Buxfer.Client.Transaction transactionBuxfer)
@@ -108,7 +126,7 @@ namespace BuxferToYNAB.Services
         {
             var transactionExist = ynabTrasactionsByAccount
                  .Where(x => x.memo.ToUpper() == transactionBuxfer.Description.ToUpper()
-                 && x.date == transactionBuxfer.Date
+                 && (x.date.AddDays(-5) <= transactionBuxfer.Date || transactionBuxfer.Date >= x.date.AddDays(5))
                  && Math.Abs(x.amount) / 1000 == Math.Abs(transactionBuxfer.Amount)
                  ).Any();
 

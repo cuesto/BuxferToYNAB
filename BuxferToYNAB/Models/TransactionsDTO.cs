@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Buxfer.Client;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -14,6 +16,11 @@ namespace BuxferToYNAB.Models
         public string memo { get; set; }
         public string flag_color { get; set; }
         public string import_id { get; set; }
+
+        [JsonIgnore]
+        public TransactionType Type { get; set; }
+        [JsonIgnore]
+        public decimal amountRaw { get; set; }
     }
 
     public class TransactionsDTO
