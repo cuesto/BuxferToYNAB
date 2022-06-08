@@ -28,7 +28,7 @@ namespace BuxferToYNAB.Services
             _ynabCreditCardAcctId = _config["YNABCreditCardAcctId"];
             _ynabAPIURL = "https://api.youneedabudget.com/v1/budgets";
 
-            _sinceDate = DateTime.Today.AddDays(-15);
+            _sinceDate = DateTime.Today.AddDays(-30);
         }
 
         public async Task SyncTransactions()
@@ -59,15 +59,20 @@ namespace BuxferToYNAB.Services
 
         private void PostTransactionToYNAB(TransactionsDTO curatedTransactions)
         {
-            var client = new RestClient($"https://api.youneedabudget.com/v1/budgets/{_ynabBudgetId}/transactions");
-            client.Timeout = -1;
-            var request = new RestRequest(Method.POST);
-            request.AddHeader("Authorization", $"Bearer {_ynabToken}");
-            request.AddHeader("Content-Type", "application/json");
-            var body = JsonSerializer.Serialize(curatedTransactions);
-            request.AddParameter("application/json", body, ParameterType.RequestBody);
-            IRestResponse response = client.Execute(request);
-
+            try
+            {
+                var client = new RestClient($"https://api.youneedabudget.com/v1/budgets/{_ynabBudgetId}/transactions");
+                client.Timeout = -1;
+                var request = new RestRequest(Method.POST);
+                request.AddHeader("Authorization", $"Bearer {_ynabToken}");
+                request.AddHeader("Content-Type", "application/json");
+                var body = JsonSerializer.Serialize(curatedTransactions);
+                request.AddParameter("application/json", body, ParameterType.RequestBody);
+                IRestResponse response = client.Execute(request);
+            }catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
 
         private void AddTransactionsToQueue(Buxfer.Client.Transaction transactionBuxfer, List<TransactionDTO> transactions)
