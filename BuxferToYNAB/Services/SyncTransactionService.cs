@@ -100,7 +100,7 @@ namespace BuxferToYNAB.Services
         private bool OmmitTransferTransaction(Buxfer.Client.Transaction transactionBuxfer)
         {
             
-            if (transactionBuxfer.Description == "Pago Via Mbanking"
+            if ((transactionBuxfer.Description == "Pago Via Mbanking" || transactionBuxfer.Description == "Pago Via App")
                 && GetAccountId(transactionBuxfer.AccountName) == _ynabCreditCardAcctId
                 && transactionBuxfer.Type == TransactionType.Transfer)
                 return true;
@@ -130,7 +130,7 @@ namespace BuxferToYNAB.Services
         private bool CheckIfTransactionExistInYNAB(Buxfer.Client.Transaction transactionBuxfer, List<Models.Transaction> ynabTrasactionsByAccount)
         {
             var transactionExist = ynabTrasactionsByAccount
-                 .Where(x => x.memo.ToUpper() == transactionBuxfer.Description.ToUpper()
+                 .Where(x => x.memo?.ToUpper() == transactionBuxfer.Description.ToUpper()
                  && (x.date.AddDays(-5) <= transactionBuxfer.Date || transactionBuxfer.Date >= x.date.AddDays(5))
                  && Math.Abs(x.amount) / 1000 == Math.Abs(transactionBuxfer.Amount)
                  ).Any();
