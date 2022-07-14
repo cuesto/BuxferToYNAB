@@ -28,7 +28,7 @@ namespace BuxferToYNAB.Services
             _ynabCreditCardAcctId = _config["YNABCreditCardAcctId"];
             _ynabAPIURL = "https://api.youneedabudget.com/v1/budgets";
 
-            _sinceDate = DateTime.Today.AddDays(-10);
+            _sinceDate = DateTime.Today.AddDays(-15);
         }
 
         public async Task SyncTransactions()
@@ -100,7 +100,8 @@ namespace BuxferToYNAB.Services
         private bool OmmitTransferTransaction(Buxfer.Client.Transaction transactionBuxfer)
         {
             
-            if ((transactionBuxfer.Description == "Pago Via Mbanking" || transactionBuxfer.Description == "Pago Via App")
+            if ((transactionBuxfer.Description == "Pago Via Mbanking" || transactionBuxfer.Description == "Pago Via App"
+                || transactionBuxfer.Description == "Pago Via Internet")
                 && GetAccountId(transactionBuxfer.AccountName) == _ynabCreditCardAcctId
                 && transactionBuxfer.Type == TransactionType.Transfer)
                 return true;
