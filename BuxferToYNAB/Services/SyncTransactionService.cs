@@ -160,7 +160,7 @@ namespace BuxferToYNAB.Services
             var accountId = "";
             switch (key)
             {
-                case "************9095":
+                case "************8616":
                     accountId = _ynabCreditCardAcctId;
                     break;
                 default:
