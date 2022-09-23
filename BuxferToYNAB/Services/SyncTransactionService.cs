@@ -69,7 +69,8 @@ namespace BuxferToYNAB.Services
                 var body = JsonSerializer.Serialize(curatedTransactions);
                 request.AddParameter("application/json", body, ParameterType.RequestBody);
                 IRestResponse response = client.Execute(request);
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 throw new Exception(ex.Message);
             }
@@ -90,7 +91,7 @@ namespace BuxferToYNAB.Services
                 amount = amount,
                 amountRaw = transactionBuxfer.Amount,
                 flag_color = "purple",
-                import_id = $"YNAB:{amount}:{transactionBuxfer.Date.ToString("yyyy-MM-dd")}:{new Random().Next()}",
+                import_id = $"YNAB:{amount}:{transactionBuxfer.Date:yyyy-MM-dd}:{new Random().Next()}",
                 payee_name = transactionBuxfer.Description,
                 memo = transactionBuxfer.Description,
                 Type = transactionBuxfer.Type
@@ -99,9 +100,11 @@ namespace BuxferToYNAB.Services
 
         private bool OmmitTransferTransaction(Buxfer.Client.Transaction transactionBuxfer)
         {
-            
-            if ((transactionBuxfer.Description == "Pago Via Mbanking" || transactionBuxfer.Description == "Pago Via App"
-                || transactionBuxfer.Description == "Pago Via Internet")
+
+            if ((transactionBuxfer.Description == "Pago Via Mbanking"
+                 || transactionBuxfer.Description == "Pago Via App"
+                 || transactionBuxfer.Description == "Pago Via Internet"
+                 || transactionBuxfer.Description == "Pago Via Telebanco")
                 && GetAccountId(transactionBuxfer.AccountName) == _ynabCreditCardAcctId
                 && transactionBuxfer.Type == TransactionType.Transfer)
                 return true;
@@ -112,7 +115,7 @@ namespace BuxferToYNAB.Services
 
         private int GetAmount(Buxfer.Client.Transaction transactionBuxfer)
         {
-            var amount = 0;
+            int amount;
             switch (transactionBuxfer.Type)
             {
                 case TransactionType.Income:
@@ -121,7 +124,7 @@ namespace BuxferToYNAB.Services
                 default:
                     amount = (int)(transactionBuxfer.Amount * -1000);
                     break;
-            };
+            }
 
             return amount;
 
